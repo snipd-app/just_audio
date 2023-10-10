@@ -32,6 +32,7 @@
     long long _updateTime;
     int _updatePosition;
     int _lastPosition;
+    BOOL _playAfterLikelyToKeepUp;
     int _bufferedPosition;
     // Set when the current item hasn't been played yet so we aren't sure whether sufficient audio has been buffered.
     BOOL _bufferUnconfirmed;
@@ -81,6 +82,7 @@
     _bufferedPosition = 0;
     _bufferUnconfirmed = NO;
     _playing = NO;
+    _playAfterLikelyToKeepUp = NO;
     _loadResult = nil;
     _playResult = nil;
     _automaticallyWaitsToMinimizeStalling = YES;
@@ -380,7 +382,7 @@
     [playerItem removeObserver:self forKeyPath:@"playbackBufferEmpty"];
     [playerItem removeObserver:self forKeyPath:@"playbackBufferFull"];
     [playerItem removeObserver:self forKeyPath:@"loadedTimeRanges"];
-    //[playerItem removeObserver:self forKeyPath:@"playbackLikelyToKeepUp"];
+    [playerItem removeObserver:self forKeyPath:@"playbackLikelyToKeepUp"];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:AVPlayerItemDidPlayToEndTimeNotification object:playerItem];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:AVPlayerItemFailedToPlayToEndTimeNotification object:playerItem];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:AVPlayerItemPlaybackStalledNotification object:playerItem];
@@ -393,7 +395,7 @@
     [playerItem addObserver:self forKeyPath:@"playbackBufferEmpty" options:NSKeyValueObservingOptionNew context:nil];
     [playerItem addObserver:self forKeyPath:@"playbackBufferFull" options:NSKeyValueObservingOptionNew context:nil];
     [playerItem addObserver:self forKeyPath:@"loadedTimeRanges" options:NSKeyValueObservingOptionNew context:nil];
-    //[playerItem addObserver:self forKeyPath:@"playbackLikelyToKeepUp" options:NSKeyValueObservingOptionNew context:nil];
+    [playerItem addObserver:self forKeyPath:@"playbackLikelyToKeepUp" options:NSKeyValueObservingOptionNew context:nil];
     // Get notified when playback has reached the end
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onComplete:) name:AVPlayerItemDidPlayToEndTimeNotification object:playerItem];
     // Get notified when playback stops due to a failure (currently unused)
@@ -840,7 +842,9 @@
                 [self broadcastPlaybackEvent];
             }
         }
-    /* } else if ([keyPath isEqualToString:@"playbackLikelyToKeepUp"]) { */
+    } else if ([keyPath isEqualToString:@"playbackLikelyToKeepUp"] && self->_playAfterLikelyToKeepUp) {
+        self->_player.rate = self->_speed;
+        self->_playAfterLikelyToKeepUp = NO;
     } else if ([keyPath isEqualToString:@"timeControlStatus"]) {
         if (@available(macOS 10.12, iOS 10.0, *)) {
             AVPlayerTimeControlStatus status = AVPlayerTimeControlStatusPaused;
@@ -1025,6 +1029,7 @@
 - (void)pause {
     if (!_playing) return;
     _playing = NO;
+    self->_playAfterLikelyToKeepUp = NO;
     [_player pause];
     [self updatePosition];
     [self broadcastPlaybackEvent];
@@ -1263,15 +1268,8 @@
                 // If playing, buffering will be detected either by:
                 // 1. checkForDiscontinuity
                 // 2. timeControlStatus
-                if (@available(iOS 10.0, *)) {
-                    // NOTE: Re-enable this line only after figuring out how to
-                    // detect buffering when buffered audio is not immediately
-                    // available.
-                    //[_player playImmediatelyAtRate:_speed];
-                    self->_player.rate = self->_speed;
-                } else {
-                    self->_player.rate = self->_speed;
-                }
+                // self->_player.rate = self->_speed;
+                self->_playAfterLikelyToKeepUp = YES;
             } else {
                 // If not playing, there is no reliable way to detect
                 // when buffering has completed, so we use
