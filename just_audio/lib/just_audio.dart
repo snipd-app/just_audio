@@ -1329,7 +1329,7 @@ class AudioPlayer {
       final platform = active
           ? await (_nativePlatform = _pluginPlatform.init(InitRequest(
               id: _id,
-              userAgent: _userAgent,
+              // userAgent: _userAgent,
               audioLoadConfiguration: _audioLoadConfiguration?._toMessage(),
               androidAudioEffects: (_isAndroid() || _isUnitTest())
                   ? _audioPipeline.androidAudioEffects
