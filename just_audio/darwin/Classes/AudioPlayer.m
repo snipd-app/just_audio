@@ -674,8 +674,10 @@
     if (_indexedAudioSources.count == 0 || !_player.currentItem ||
             _player.currentItem.status == AVPlayerItemStatusReadyToPlay) {
         _processingState = ready;
-        _loadResult(@{@"duration": @([self getDurationMicroseconds])});
-        _loadResult = nil;
+        if (_loadResult) {
+            _loadResult(@{@"duration": @([self getDurationMicroseconds])});
+            _loadResult = nil;
+        }
     } else {
         // We send result after the playerItem is ready in observeValueForKeyPath.
     }
