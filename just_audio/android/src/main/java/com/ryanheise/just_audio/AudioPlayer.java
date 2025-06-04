@@ -193,12 +193,17 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
         if (this.audioSessionId != null) {
             for (Object rawAudioEffect : rawAudioEffects) {
                 Map<?, ?> json = (Map<?, ?>)rawAudioEffect;
-                AudioEffect audioEffect = decodeAudioEffect(rawAudioEffect, this.audioSessionId);
-                if ((Boolean)json.get("enabled")) {
-                    audioEffect.setEnabled(true);
+                try {
+                    AudioEffect audioEffect = decodeAudioEffect(rawAudioEffect, this.audioSessionId);
+                    if ((Boolean)json.get("enabled")) {
+                        audioEffect.setEnabled(true);
+                    }
+                    audioEffects.add(audioEffect);
+                    audioEffectsMap.put((String)json.get("type"), audioEffect);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    Log.e(TAG, "Error creating audio effect: " + json.get("type") + ", " + e.getMessage());
                 }
-                audioEffects.add(audioEffect);
-                audioEffectsMap.put((String)json.get("type"), audioEffect);
             }
         }
         enqueuePlaybackEvent();
@@ -761,12 +766,20 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
     }
 
     private void audioEffectSetEnabled(String type, boolean enabled) {
-        audioEffectsMap.get(type).setEnabled(enabled);
+        if (audioEffectsMap.containsKey(type)) {
+            audioEffectsMap.get(type).setEnabled(enabled);
+        } else {
+            Log.w(TAG, "AudioEffect of type " + type + " is not enabled, cannot set enabled state");
+        }
     }
 
     private void loudnessEnhancerSetTargetGain(double targetGain) {
-        int targetGainMillibels = (int)Math.round(targetGain * 1000.0);
-        ((LoudnessEnhancer)audioEffectsMap.get("AndroidLoudnessEnhancer")).setTargetGain(targetGainMillibels);
+        if (audioEffectsMap.containsKey("AndroidLoudnessEnhancer")) {
+            int targetGainMillibels = (int)Math.round(targetGain * 1000.0);
+            ((LoudnessEnhancer)audioEffectsMap.get("AndroidLoudnessEnhancer")).setTargetGain(targetGainMillibels);
+        } else {
+            Log.w(TAG, "AndroidLoudnessEnhancer is not enabled, cannot set target gain");
+        }
     }
 
     private Map<String, Object> equalizerAudioEffectGetParameters() {
